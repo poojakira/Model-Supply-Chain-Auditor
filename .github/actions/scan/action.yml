@@ -1,0 +1,49 @@
+name: Model Security Scan
+description: "Scan ML model files for malicious payloads (pickle RCE, SafeTensors integrity)"
+inputs:
+  path:
+    description: "Path to model files to scan"
+    required: true
+    default: "models/"
+  fail-on-unsafe:
+    description: "Fail the workflow if unsafe models found"
+    required: false
+    default: "true"
+runs:
+  using: "composite"
+  steps:
+    - name: Install scanner
+      shell: bash
+      run: pip install -e ${{ github.action_path }}/../../
+    - name: Run scan
+      shell: bash
+      run: |
+        python -c "
+        import sys, json
+        from pathlib import Path
+        from src.safetensors_scanner import SafeTensorsScanner
+        
+        scan_path = Path('${{ inputs.path }}')
+        scanner = SafeTensorsScanner()
+        results = []
+        unsafe = False
+        
+        for f in scan_path.rglob('*.safetensors'):
+            result = scanner.scan(f)
+            results.append({'file': str(f), **result})
+            if not result['safe']:
+                unsafe = True
+                print(f'UNSAFE: {f} - {result[\"issues\"]}')
+            else:
+                print(f'OK: {f} ({result[\"tensor_count\"]} tensors)')
+        
+        Path('scan-results.json').write_text(json.dumps(results, indent=2))
+        
+        if unsafe and '${{ inputs.fail-on-unsafe }}' == 'true':
+            sys.exit(1)
+        "
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: model-scan-results
+        path: scan-results.json
