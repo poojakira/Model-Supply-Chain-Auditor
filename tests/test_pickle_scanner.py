@@ -123,7 +123,7 @@ class TestMalformedInput:
     def test_invalid_bytes(self):
         result = scan_pickle_bytes(b"\xff\xfe not pickle data")
         assert result.risk_level == "error"
-        assert "Failed to parse" in result.findings[0]
+        assert "Failed to parse" in result.findings[0].message
 
     def test_truncated_pickle(self):
         data = pickle.dumps({"x": list(range(100))})

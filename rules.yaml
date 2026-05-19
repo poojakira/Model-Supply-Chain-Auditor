@@ -1,0 +1,119 @@
+# Model Supply Chain Auditor - Pickle Scanning Rules
+# Based on: Trail of Bits Fickling allowlist, HuggingFace picklescan,
+# Sonatype CVE-2025-1716 research, "Stealthy Again" (arxiv 2508.19774)
+schema_version: "1.0"
+
+settings:
+  max_reduce_depth: 3
+  unknown_module_risk: "suspicious"
+  scan_past_stop: true
+
+# Modules that are SAFE in ML model pickles.
+# Source: Fickling's ML allowlist (Sep 2025), validated against
+# top-100 HuggingFace PyTorch/sklearn models.
+safe_modules:
+  - torch
+  - torch.nn
+  - torch.nn.modules
+  - torch._utils
+  - torch.storage
+  - torch.cuda
+  - numpy
+  - numpy.core.multiarray
+  - numpy.core.numeric
+  - numpy.random
+  - sklearn
+  - sklearn.tree
+  - sklearn.ensemble
+  - sklearn.linear_model
+  - sklearn.preprocessing
+  - sklearn.pipeline
+  - collections
+  - collections.abc
+  - copy
+  - copyreg
+  - _codecs
+  - array
+  - _collections_abc
+  - functools
+  - operator
+  - typing
+
+# Dangerous modules bucketed by severity.
+# Critical: direct code execution
+# High: system access, network, process control
+# Medium: indirect execution paths
+dangerous_modules:
+  critical:
+    - os
+    - nt           # os.system resolves to nt.system on Windows
+    - posix        # os.system resolves to posix.system on Linux
+    - subprocess
+    - builtins
+    - eval
+    - exec
+    - compile
+    - pty
+    - commands
+  high:
+    - sys
+    - shutil
+    - socket
+    - http
+    - urllib
+    - requests
+    - ftplib
+    - smtplib
+    - ctypes
+    - importlib
+    - runpy
+    - webbrowser
+    - antigravity
+    - code
+    - codeop
+    - signal
+    - multiprocessing
+    - _thread
+    - threading
+  medium:
+    - tempfile
+    - pathlib
+    - glob
+    - io
+    - pickle
+    - shelve
+    - marshal
+    - types
+    - inspect
+
+# Specific callables that indicate malicious intent regardless of module.
+dangerous_callables:
+  - os.system
+  - os.popen
+  - os.execl
+  - os.execle
+  - os.execv
+  - os.execve
+  - os.execvp
+  - os.execvpe
+  - os.spawnl
+  - os.spawnle
+  - subprocess.call
+  - subprocess.run
+  - subprocess.Popen
+  - subprocess.check_output
+  - subprocess.check_call
+  - builtins.eval
+  - builtins.exec
+  - builtins.__import__
+  - builtins.compile
+  - webbrowser.open
+  - ctypes.CDLL
+  - ctypes.cdll.LoadLibrary
+  - importlib.import_module
+  - runpy.run_module
+  - runpy.run_path
+  - nt.system
+  - posix.system
+  - pip.main
+  - pip._internal.cli.main.main
