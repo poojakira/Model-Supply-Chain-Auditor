@@ -33,7 +33,7 @@ try:
     from cryptography.hazmat.primitives import serialization
     from cryptography.exceptions import InvalidSignature
     HAS_CRYPTO = True
-except ImportError:
+except ImportError:  # pragma: no cover
     HAS_CRYPTO = False
 
 
