@@ -135,25 +135,31 @@ def scan_pickle_bytes(data: bytes, rules: dict[str, Any] | None = None) -> Pickl
             findings=[Finding("PICKLE000", "info", f"Failed to parse pickle: {e}", 0)],
         )
 
+    # Post-STOP detection: pickletools.genops() stops at STOP opcode,
+    # so we check for additional data after the last parsed position.
+    if scan_past_stop and ops:
+        last_opcode, last_arg, last_pos = ops[-1]
+        # STOP is 1 byte, no argument
+        end_of_parsed = last_pos + 1
+        if end_of_parsed < len(data):
+            remaining = data[end_of_parsed:]
+            # Check if remaining bytes could be another pickle stream
+            if len(remaining) >= 2 and (remaining[0] == 0x80 or remaining[0:1] in (b"(", b"}")):
+                findings.append(Finding(
+                    "PICKLE005", "critical",
+                    f"Data after STOP opcode at byte {end_of_parsed} ({len(remaining)} bytes — possible hidden payload)",
+                    end_of_parsed,
+                ))
+
     # State tracking
     stack_strings: list[str] = []
     reduce_depth = 0
-    stop_seen = False
     last_imported_module = ""
 
     for opcode, arg, pos in ops:
         op_name = opcode.name
 
-        # Post-STOP detection
-        if stop_seen and scan_past_stop:
-            findings.append(Finding(
-                "PICKLE005", "critical",
-                f"Opcode {op_name} found after STOP (hidden payload)", pos,
-            ))
-            continue
-
         if op_name == "STOP":
-            stop_seen = True
             continue
 
         # Track string values pushed to stack

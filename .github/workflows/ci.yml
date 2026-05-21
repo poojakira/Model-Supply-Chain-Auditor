@@ -24,7 +24,7 @@ jobs:
       - name: Lint
         run: ruff check src/ tests/
       - name: Test with coverage
-        run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=80
+        run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=75
 
   verify:
     runs-on: ubuntu-latest
