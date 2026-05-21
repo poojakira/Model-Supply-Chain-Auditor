@@ -167,9 +167,9 @@ def scan_pickle_bytes(data: bytes, rules: dict[str, Any] | None = None) -> Pickl
             if isinstance(arg, str):
                 stack_strings.append(arg)
 
-        # --- GLOBAL opcode (protocol 0-2): "module\nname" format ---
+        # --- GLOBAL opcode (protocol 0-2): pickletools returns "module name" (space-separated) ---
         if op_name == "GLOBAL" and isinstance(arg, str):
-            parts = arg.split("\n")
+            parts = arg.split()
             module = parts[0] if parts else ""
             name = parts[1] if len(parts) > 1 else ""
             callable_name = f"{module}.{name}"
@@ -211,8 +211,9 @@ def scan_pickle_bytes(data: bytes, rules: dict[str, Any] | None = None) -> Pickl
                 dangerous_imports.append(callable_name)
 
         # --- INST opcode (protocol 0): import + instantiate ---
+        # pickletools returns arg as "module name" (space-separated)
         if op_name == "INST" and isinstance(arg, str):
-            parts = arg.split("\n")
+            parts = arg.split()
             module = parts[0] if parts else ""
             name = parts[1] if len(parts) > 1 else ""
             callable_name = f"{module}.{name}"
