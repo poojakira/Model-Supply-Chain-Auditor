@@ -26,7 +26,9 @@ from pathlib import Path
 # Use Python's built-in cryptography (available since 3.6 via hashlib)
 # For Ed25519, we use the 'cryptography' library
 try:
-    from cryptography.exceptions import InvalidSignature`n    from cryptography.hazmat.primitives import serialization`n    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     HAS_CRYPTO = True
 except ImportError:  # pragma: no cover
     HAS_CRYPTO = False
