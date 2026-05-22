@@ -36,6 +36,9 @@ Homepage = "https://github.com/poojakira/Model-Supply-Chain-Auditor"
 Repository = "https://github.com/poojakira/Model-Supply-Chain-Auditor"
 Issues = "https://github.com/poojakira/Model-Supply-Chain-Auditor/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=90"
