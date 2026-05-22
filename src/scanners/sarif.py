@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .pickle_scanner import Finding, PickleScanResult
+from .pickle_scanner import PickleScanResult
 
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json"
