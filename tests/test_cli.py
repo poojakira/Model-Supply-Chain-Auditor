@@ -1,12 +1,8 @@
 """Integration tests for CLI."""
 
 import json
-import os
-import pickle
 import subprocess
 import sys
-
-import pytest
 
 
 class TestCLIScan:
