@@ -21,7 +21,7 @@ EXIT_ERROR = 2
 
 def cmd_scan(args: argparse.Namespace) -> int:
     """Scan a model file for malicious payloads."""
-    from src.scanners.pickle_scanner import scan_pickle_file, _load_rules
+    from src.scanners.pickle_scanner import _load_rules, scan_pickle_file
     from src.scanners.sarif import sarif_json
 
     rules = _load_rules(args.rules) if args.rules else _load_rules()
@@ -70,7 +70,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 def cmd_sign(args: argparse.Namespace) -> int:
     """Sign a model file with Ed25519."""
-    from src.signing import generate_signing_keypair, sign_model, export_public_key
+    from src.signing import export_public_key, generate_signing_keypair, sign_model
 
     try:
         private_key, public_key = generate_signing_keypair()
@@ -101,7 +101,7 @@ def cmd_sign(args: argparse.Namespace) -> int:
 
 def cmd_verify(args: argparse.Namespace) -> int:
     """Verify a model file against its signature."""
-    from src.signing import verify_model, compute_model_hash, ModelSignature
+    from src.signing import ModelSignature, verify_model
     from src.signing.model_signer import load_public_key
 
     try:

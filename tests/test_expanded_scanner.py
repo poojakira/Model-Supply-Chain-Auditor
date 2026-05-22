@@ -1,12 +1,8 @@
 """Tests for expanded scanner features: ZIP extraction, BUILD/INST opcodes, chain depth."""
 
-import io
 import os
 import pickle
-import struct
 import zipfile
-
-import pytest
 
 from src.scanners import scan_pickle_bytes, scan_pickle_file, Finding
 

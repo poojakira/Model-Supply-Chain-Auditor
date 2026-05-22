@@ -20,7 +20,6 @@ References:
 from __future__ import annotations
 
 import io
-import json
 import pickletools
 import zipfile
 from dataclasses import dataclass, field
@@ -147,7 +146,7 @@ def scan_pickle_bytes(data: bytes, rules: dict[str, Any] | None = None) -> Pickl
             if len(remaining) >= 2 and (remaining[0] == 0x80 or remaining[0:1] in (b"(", b"}")):
                 findings.append(Finding(
                     "PICKLE005", "critical",
-                    f"Data after STOP opcode at byte {end_of_parsed} ({len(remaining)} bytes — possible hidden payload)",
+                    f"Data after STOP opcode at byte {end_of_parsed} ({len(remaining)} bytes ? possible hidden payload)",
                     end_of_parsed,
                 ))
 
@@ -246,7 +245,7 @@ def scan_pickle_bytes(data: bytes, rules: dict[str, Any] | None = None) -> Pickl
             if dangerous_imports:
                 findings.append(Finding(
                     "PICKLE002", "critical",
-                    f"Code execution via OBJ opcode", pos,
+                    "Code execution via OBJ opcode", pos,
                 ))
 
         # --- NEWOBJ / NEWOBJ_EX: call cls.__new__ ---

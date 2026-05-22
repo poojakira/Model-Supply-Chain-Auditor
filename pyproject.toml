@@ -36,11 +36,15 @@ Homepage = "https://github.com/poojakira/Model-Supply-Chain-Auditor"
 Repository = "https://github.com/poojakira/Model-Supply-Chain-Auditor"
 Issues = "https://github.com/poojakira/Model-Supply-Chain-Auditor/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=90"
 
 [tool.coverage.run]
+patch = ["subprocess"]
 source = ["src"]
 
 [tool.coverage.report]
@@ -54,6 +58,9 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["I001"]
 
 [tool.mypy]
 python_version = "3.11"
