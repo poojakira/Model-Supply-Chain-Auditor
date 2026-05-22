@@ -1,13 +1,11 @@
 """Tests targeting uncovered code paths for 100% coverage."""
 
-import json
 import os
 import pickle
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -105,9 +103,7 @@ class TestOpcodeDetection:
             "dangerous_callables": [],
         }
         # Create a pickle that uses a non-safe module + BUILD
-        # Protocol 0 GLOBAL + BUILD sequence
-        import pickletools
-        # Manually craft: GLOBAL 'unknown_mod\nSomeClass' + empty_tuple + REDUCE + dict + BUILD + STOP
+        # Protocol 0 GLOBAL + BUILD sequence\n        # Manually craft: GLOBAL 'unknown_mod\nSomeClass' + empty_tuple + REDUCE + dict + BUILD + STOP
         # This is hard to craft manually, so test via the classify path
         risk, _ = _classify_module("unknown_dangerous_lib", rules)
         assert risk == "suspicious"
@@ -115,9 +111,7 @@ class TestOpcodeDetection:
     def test_reduce_chain_depth_exceeds_max(self):
         """Lines 238+: REDUCE chain depth > max triggers PICKLE004."""
         # Create a pickle with multiple REDUCE calls in sequence
-        # Using nested __reduce__ chains
-        import functools
-
+        # Using nested __reduce__ chains\n
         class Chain1:
             def __reduce__(self):
                 return (eval, ("1+1",))
@@ -506,8 +500,7 @@ class TestSigningCryptoMissing:
 
     def test_generate_keypair_without_crypto(self):
         """Lines 36-37: ImportError when cryptography unavailable."""
-        from unittest.mock import patch
-        import src.signing.model_signer as signer
+                import src.signing.model_signer as signer
 
         original = signer.HAS_CRYPTO
         try:
