@@ -12,11 +12,10 @@ ever executing the payload — same approach as production scanners.
 import os
 import pickle
 import subprocess
-import tempfile
 
 import pytest
 
-from src.scanners import scan_pickle_bytes, scan_pickle_file, PickleScanResult
+from src.scanners import scan_pickle_bytes, scan_pickle_file
 
 
 class TestSafePickles:
