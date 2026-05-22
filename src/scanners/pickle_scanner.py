@@ -20,7 +20,6 @@ References:
 from __future__ import annotations
 
 import io
-import json
 import pickletools
 import zipfile
 from dataclasses import dataclass, field
