@@ -5,7 +5,7 @@ import os
 import pickle
 
 from src.scanners import scan_pickle_bytes
-from src.scanners.sarif import to_sarif, sarif_json, SARIF_VERSION
+from src.scanners.sarif import SARIF_VERSION, sarif_json, to_sarif
 
 
 class TestSarifOutput:
@@ -34,7 +34,9 @@ class TestSarifOutput:
         assert len(results) > 0
         assert results[0]["ruleId"].startswith("PICKLE")
         assert "locations" in results[0]
-        assert results[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "evil.pkl"
+        assert (
+            results[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "evil.pkl"
+        )
 
     def test_sarif_json_is_valid(self):
         result = scan_pickle_bytes(pickle.dumps({"safe": True}))

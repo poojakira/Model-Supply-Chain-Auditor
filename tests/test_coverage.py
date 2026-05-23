@@ -1,13 +1,11 @@
 """Tests targeting uncovered code paths for 100% coverage."""
 
-import json
 import os
 import pickle
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -58,13 +56,21 @@ class TestClassifyModule:
 
     def test_prefix_match_safe(self):
         """Safe module prefix matching."""
-        rules = {"safe_modules": ["torch"], "dangerous_modules": {"critical": [], "high": [], "medium": []}, "settings": {}}
+        rules = {
+            "safe_modules": ["torch"],
+            "dangerous_modules": {"critical": [], "high": [], "medium": []},
+            "settings": {},
+        }
         risk, _ = _classify_module("torch.nn.modules.conv", rules)
         assert risk == "safe"
 
     def test_prefix_match_dangerous(self):
         """Dangerous module prefix matching."""
-        rules = {"safe_modules": [], "dangerous_modules": {"critical": ["os"], "high": [], "medium": []}, "settings": {}}
+        rules = {
+            "safe_modules": [],
+            "dangerous_modules": {"critical": ["os"], "high": [], "medium": []},
+            "settings": {},
+        }
         risk, severity = _classify_module("os.path", rules)
         assert risk == "dangerous"
         assert severity == "critical"
@@ -101,12 +107,15 @@ class TestOpcodeDetection:
         rules = {
             "safe_modules": ["numpy"],
             "dangerous_modules": {"critical": ["os"], "high": [], "medium": []},
-            "settings": {"max_reduce_depth": 3, "unknown_module_risk": "suspicious", "scan_past_stop": True},
+            "settings": {
+                "max_reduce_depth": 3,
+                "unknown_module_risk": "suspicious",
+                "scan_past_stop": True,
+            },
             "dangerous_callables": [],
         }
         # Create a pickle that uses a non-safe module + BUILD
         # Protocol 0 GLOBAL + BUILD sequence
-        import pickletools
         # Manually craft: GLOBAL 'unknown_mod\nSomeClass' + empty_tuple + REDUCE + dict + BUILD + STOP
         # This is hard to craft manually, so test via the classify path
         risk, _ = _classify_module("unknown_dangerous_lib", rules)
@@ -116,7 +125,6 @@ class TestOpcodeDetection:
         """Lines 238+: REDUCE chain depth > max triggers PICKLE004."""
         # Create a pickle with multiple REDUCE calls in sequence
         # Using nested __reduce__ chains
-        import functools
 
         class Chain1:
             def __reduce__(self):
@@ -178,6 +186,7 @@ class TestSafetensorsCoverage:
         """Line 32: file with wrong extension."""
         import json as json_mod
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.bin"  # wrong extension
@@ -194,6 +203,7 @@ class TestSafetensorsCoverage:
     def test_header_too_large(self, tmp_path):
         """Lines 46-47: header size exceeds file size."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -209,6 +219,7 @@ class TestSafetensorsCoverage:
     def test_suspiciously_large_header(self, tmp_path):
         """Lines 51-52: header > 100MB."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -224,6 +235,7 @@ class TestSafetensorsCoverage:
         """Lines 74-75: tensor with missing fields."""
         import json as json_mod
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -241,6 +253,7 @@ class TestSafetensorsCoverage:
         """Lines 79: start > end offsets."""
         import json as json_mod
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -257,6 +270,7 @@ class TestSafetensorsCoverage:
     def test_scan_error(self, tmp_path):
         """Lines 83-88: generic scan error."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -276,12 +290,13 @@ class TestSigningCoverage:
     def test_crypto_not_available(self):
         """Lines 36-37: ImportError when cryptography not installed."""
         from src.signing.model_signer import HAS_CRYPTO
+
         # We can't easily uninstall cryptography, but we can verify the flag exists
         assert HAS_CRYPTO is True  # It IS installed in our env
 
     def test_load_public_key(self, tmp_path):
         """Lines 134-135: load_public_key function."""
-        from src.signing import generate_signing_keypair, export_public_key
+        from src.signing import export_public_key, generate_signing_keypair
         from src.signing.model_signer import load_public_key
 
         _, pub = generate_signing_keypair()
@@ -298,18 +313,38 @@ class TestCLIVerifyCommand:
         sig_path = str(tmp_path / "model.sig")
         # First sign
         result = subprocess.run(
-            [sys.executable, "-m", "src.cli", "sign", safe_pkl_file,
-             "--signer", "test", "--output", sig_path],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "src.cli",
+                "sign",
+                safe_pkl_file,
+                "--signer",
+                "test",
+                "--output",
+                sig_path,
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
 
         pub_path = str(tmp_path / "model.pub")
         # Now verify
         result = subprocess.run(
-            [sys.executable, "-m", "src.cli", "verify", safe_pkl_file,
-             "--signature", sig_path, "--key", pub_path],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "src.cli",
+                "verify",
+                safe_pkl_file,
+                "--signature",
+                sig_path,
+                "--key",
+                pub_path,
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert "VALID" in result.stdout
@@ -319,20 +354,41 @@ class TestCLIVerifyCommand:
         sig_path = str(tmp_path / "model.sig")
         # Sign with one key
         subprocess.run(
-            [sys.executable, "-m", "src.cli", "sign", safe_pkl_file,
-             "--signer", "test", "--output", sig_path],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "src.cli",
+                "sign",
+                safe_pkl_file,
+                "--signer",
+                "test",
+                "--output",
+                sig_path,
+            ],
+            capture_output=True,
+            text=True,
         )
         # Create a different keypair's public key
-        from src.signing import generate_signing_keypair, export_public_key
+        from src.signing import export_public_key, generate_signing_keypair
+
         _, other_pub = generate_signing_keypair()
         other_pub_path = tmp_path / "other.pub"
         other_pub_path.write_bytes(export_public_key(other_pub))
 
         result = subprocess.run(
-            [sys.executable, "-m", "src.cli", "verify", safe_pkl_file,
-             "--signature", sig_path, "--key", str(other_pub_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "src.cli",
+                "verify",
+                safe_pkl_file,
+                "--signature",
+                sig_path,
+                "--key",
+                str(other_pub_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 1
         assert "INVALID" in result.stdout
@@ -341,11 +397,11 @@ class TestCLIVerifyCommand:
         """Lines 165-169: no subcommand prints help."""
         result = subprocess.run(
             [sys.executable, "-m", "src.cli"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 2
         assert "scan" in result.stdout or "usage" in result.stdout.lower() or result.returncode == 2
-
 
 
 class TestRawOpcodeDetection:
@@ -375,13 +431,13 @@ class TestRawOpcodeDetection:
         assert not any(f.rule_id == "PICKLE003" for f in result.findings)
 
 
-
 class TestMainModule:
     """Cover src/__main__.py."""
 
     def test_main_module_importable(self):
         """Line 2: __main__.py imports cli.main."""
         import importlib
+
         mod = importlib.import_module("src.__main__")
         assert hasattr(mod, "main")
 
@@ -394,7 +450,8 @@ class TestCLIErrorPaths:
         out_file = str(tmp_path / "result.txt")
         result = subprocess.run(
             [sys.executable, "-m", "src.cli", "scan", safe_pkl_file, "--output", out_file],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert Path(out_file).exists()
@@ -408,7 +465,8 @@ class TestCLIErrorPaths:
         bad.write_bytes(b"\x80\x05" + b"\xff" * 1000)  # valid protocol byte but garbage
         result = subprocess.run(
             [sys.executable, "-m", "src.cli", "scan", str(bad)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         # Should not crash — either returns 0 (error risk_level) or handles gracefully
         assert result.returncode in (0, 2)
@@ -417,7 +475,8 @@ class TestCLIErrorPaths:
         """Lines 97-99: sign command error path."""
         result = subprocess.run(
             [sys.executable, "-m", "src.cli", "sign", "/nonexistent/model.pt", "--signer", "x"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 2
         assert "Error" in result.stderr
@@ -429,9 +488,19 @@ class TestCLIErrorPaths:
         bad_key = tmp_path / "bad.pub"
         bad_key.write_text("not a key")
         result = subprocess.run(
-            [sys.executable, "-m", "src.cli", "verify", safe_pkl_file,
-             "--signature", str(bad_sig), "--key", str(bad_key)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                "src.cli",
+                "verify",
+                safe_pkl_file,
+                "--signature",
+                str(bad_sig),
+                "--key",
+                str(bad_key),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 2
         assert "Error" in result.stderr
@@ -443,6 +512,7 @@ class TestSafetensorsRemainingPaths:
     def test_header_exceeds_100mb_limit(self, tmp_path):
         """Lines 51-52: header > 100MB triggers rejection."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
@@ -456,17 +526,21 @@ class TestSafetensorsRemainingPaths:
         scanner = SafeTensorsScanner()
         result = scanner.scan(filepath)
         assert result["safe"] is False
-        assert any("suspiciously large" in i.lower() or "large" in i.lower() for i in result["issues"])
+        assert any(
+            "suspiciously large" in i.lower() or "large" in i.lower() for i in result["issues"]
+        )
 
     def test_generic_exception_in_scan(self, tmp_path):
         """Lines 86-88: unexpected exception during scan."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
         # Valid header size, valid JSON, but tensor info triggers unexpected error
         # Use a header that has non-list data_offsets
         import json as json_mod
+
         header = {"tensor": {"dtype": "F32", "shape": [2], "data_offsets": "not_a_list"}}
         header_bytes = json_mod.dumps(header).encode()
         with open(filepath, "wb") as f:
@@ -506,7 +580,6 @@ class TestSigningCryptoMissing:
 
     def test_generate_keypair_without_crypto(self):
         """Lines 36-37: ImportError when cryptography unavailable."""
-        from unittest.mock import patch
         import src.signing.model_signer as signer
 
         original = signer.HAS_CRYPTO
@@ -518,7 +591,6 @@ class TestSigningCryptoMissing:
             signer.HAS_CRYPTO = original
 
 
-
 class TestFinalCoverageGaps:
     """Cover the absolute last uncovered lines."""
 
@@ -527,11 +599,13 @@ class TestFinalCoverageGaps:
         # Create a .pt ZIP file and scan via CLI
         filepath = tmp_path / "model.pt"
         import zipfile as zf
+
         with zf.ZipFile(filepath, "w") as z:
             z.writestr("archive/data.pkl", pickle.dumps({"w": 1.0}))
         result = subprocess.run(
             [sys.executable, "-m", "src.cli", "scan", str(filepath), "--verbose"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert "Scanned:" in result.stdout
 
@@ -553,12 +627,18 @@ class TestFinalCoverageGaps:
         rules = {
             "safe_modules": [],
             "dangerous_modules": {"critical": ["os"], "high": [], "medium": []},
-            "settings": {"max_reduce_depth": 1, "unknown_module_risk": "suspicious", "scan_past_stop": True},
+            "settings": {
+                "max_reduce_depth": 1,
+                "unknown_module_risk": "suspicious",
+                "scan_past_stop": True,
+            },
             "dangerous_callables": ["os.system"],
         }
+
         class E:
             def __reduce__(self):
                 return (os.system, ("id",))
+
         data = pickle.dumps(E())
         result = scan_pickle_bytes(data, rules=rules)
         # With max_reduce_depth=1, even depth 1 should trigger PICKLE004
@@ -575,12 +655,17 @@ class TestFinalCoverageGaps:
         rules = {
             "safe_modules": ["numpy"],
             "dangerous_modules": {"critical": [], "high": ["sys"], "medium": []},
-            "settings": {"max_reduce_depth": 3, "unknown_module_risk": "suspicious", "scan_past_stop": True},
+            "settings": {
+                "max_reduce_depth": 3,
+                "unknown_module_risk": "suspicious",
+                "scan_past_stop": True,
+            },
             "dangerous_callables": [],
         }
         # Craft pickle importing sys (high severity)
         raw = b"csys\nexit\n(I0\ntR."
         import zipfile as zf
+
         with zf.ZipFile(filepath, "w") as z:
             z.writestr("data.pkl", raw)
         result = scan_pickle_file(str(filepath), rules=rules)
@@ -589,12 +674,14 @@ class TestFinalCoverageGaps:
     def test_safetensors_generic_exception(self, tmp_path):
         """safetensors_scanner lines 86-88: trigger generic Exception."""
         import struct
+
         from src.safetensors_scanner import SafeTensorsScanner
 
         filepath = tmp_path / "model.safetensors"
         # Create a file where JSON parses but tensor processing raises
         # Use a header where data_offsets is not a list (TypeError on unpacking)
         import json as j
+
         header = {"t": {"dtype": "F32", "shape": [1], "data_offsets": None}}
         hb = j.dumps(header).encode()
         with open(filepath, "wb") as f:
@@ -614,13 +701,15 @@ class TestAbsoluteLastLines:
         # A directory path will cause an IsADirectoryError or PermissionError
         result = subprocess.run(
             [sys.executable, "-m", "src.cli", "scan", str(tmp_path)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 2
 
     def test_zip_medium_only_findings(self, tmp_path):
         """pickle_scanner line 285: ZIP with only medium-severity findings."""
         import zipfile as zf
+
         # Craft pickle that imports a medium-severity module WITHOUT REDUCE
         # Just GLOBAL (import) without calling it — triggers PICKLE001 medium only
         raw = b"ctempfile\nNamedTemporaryFile\n."  # GLOBAL + STOP (no REDUCE)
@@ -630,7 +719,11 @@ class TestAbsoluteLastLines:
         rules = {
             "safe_modules": ["numpy"],
             "dangerous_modules": {"critical": [], "high": [], "medium": ["tempfile"]},
-            "settings": {"max_reduce_depth": 3, "unknown_module_risk": "safe", "scan_past_stop": True},
+            "settings": {
+                "max_reduce_depth": 3,
+                "unknown_module_risk": "safe",
+                "scan_past_stop": True,
+            },
             "dangerous_callables": [],
         }
         result = scan_pickle_file(str(filepath), rules=rules)
@@ -641,6 +734,7 @@ class TestAbsoluteLastLines:
         # We can't uninstall cryptography, but we can verify the try/except structure
         # by checking the module attribute exists and is True
         from src.signing import model_signer
+
         assert model_signer.HAS_CRYPTO is True
         # The lines 36-37 are the `except ImportError: HAS_CRYPTO = False` branch
         # which only executes if cryptography is not installed.

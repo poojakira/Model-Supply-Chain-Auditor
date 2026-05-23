@@ -15,9 +15,11 @@ def safe_pickle_bytes():
 @pytest.fixture
 def malicious_pickle_bytes():
     """Pickle with os.system RCE payload (never executed)."""
+
     class Exploit:
         def __reduce__(self):
             return (os.system, ("id",))
+
     return pickle.dumps(Exploit())
 
 

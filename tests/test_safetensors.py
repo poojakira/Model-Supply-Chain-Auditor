@@ -2,10 +2,10 @@
 
 import json
 import struct
-import tempfile
 from pathlib import Path
 
 import pytest
+
 from src.safetensors_scanner import SafeTensorsScanner
 
 
@@ -49,7 +49,9 @@ def test_file_not_found(scanner):
 
 def test_suspicious_metadata(scanner, tmp_path):
     filepath = tmp_path / "model.safetensors"
-    _create_safetensors_file(filepath, {"weight": ("F32", [10], 40)}, metadata={"__exec_payload": "malicious"})
+    _create_safetensors_file(
+        filepath, {"weight": ("F32", [10], 40)}, metadata={"__exec_payload": "malicious"}
+    )
     result = scanner.scan(filepath)
     assert result["safe"] is False
     assert any("Suspicious metadata" in i for i in result["issues"])

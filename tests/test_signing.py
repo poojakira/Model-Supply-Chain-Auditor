@@ -8,12 +8,12 @@ Ed25519: Bernstein et al., "High-speed high-security signatures" (2012).
 import pytest
 
 from src.signing import (
+    ModelSignature,
     compute_model_hash,
+    export_public_key,
     generate_signing_keypair,
     sign_model,
     verify_model,
-    export_public_key,
-    ModelSignature,
 )
 
 

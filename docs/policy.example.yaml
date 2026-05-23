@@ -1,0 +1,20 @@
+# Example model promotion policy for `msca policy`.
+# This is intentionally explicit: unsigned artifacts, local laptop builds, and
+# unknown source repositories are denied before the model can be loaded.
+
+allowed_signers:
+  - training-pipeline-v1
+
+allowed_builders:
+  - github-actions://poojakira/model-release
+
+allowed_source_repositories:
+  - https://github.com/poojakira/Model-Supply-Chain-Auditor
+
+allowed_source_refs:
+  - refs/heads/main
+
+max_provenance_age_seconds: 86400
+
+required_material_names:
+  - training-data

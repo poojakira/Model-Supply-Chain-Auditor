@@ -2,49 +2,44 @@
 
 ![CI](https://github.com/poojakira/Model-Supply-Chain-Auditor/actions/workflows/ci.yml/badge.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
-![Tests 51](https://img.shields.io/badge/tests-51_passing-green.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-**Detects malicious code in ML model files before they execute.** Static analysis of pickle bytecode + Ed25519 cryptographic model signing + SARIF output for CI/CD.
+**Detects executable payloads in ML model artifacts before they are loaded.** Static pickle bytecode analysis, SafeTensors validation, Ed25519 model signing, and SARIF output for CI/CD.
 
-```
+```text
 $ msca scan model.pt
 [MALICIOUS] model.pt
-  - [PICKLE001] Dangerous import: subprocess.Popen (byte 25)
-  - [PICKLE002] Code execution via REDUCE (depth 1) (byte 38)
+  - [PICKLE001] Dangerous import via GLOBAL: subprocess.Popen (byte 25)
+  - [PICKLE002] Code execution via REDUCE (chain depth 1) (byte 38)
   Scanned: archive/data.pkl
 ```
 
----
-
 ## Why This Exists
 
-ML models are distributed as serialized files (`.pkl`, `.pt`). Python's pickle format can execute arbitrary code during deserialization — a malicious model achieves Remote Code Execution on the victim's machine.
+ML model files are supply-chain artifacts. Pickle-backed formats such as `.pkl`, `.pt`, `.pth`, and some `.joblib` files can execute Python code during deserialization.
 
-**Real-world context (2025-2026):**
-- 44.9% of HuggingFace models still use pickle format ([arxiv 2508.15987](https://arxiv.org/abs/2508.15987))
-- 95% of confirmed malicious models target PyTorch pickle serialization
-- 7+ CVEs in pickle scanners (picklescan, Fickling) disclosed in 2025-2026
-- PickleScan has documented 89% bypass rate against sophisticated attacks
+Verified public context:
+
+| Claim | Source |
+|-------|--------|
+| 44.9% of popular Hugging Face models in the PickleBall dataset used pickle-backed formats | [PickleBall, arXiv:2508.15987](https://arxiv.org/abs/2508.15987) |
+| The 2025 "Stealthy Again" paper reports 133 exploitable pickle gadgets and an 89% bypass rate against its best-performing evaluated scanner | [arXiv:2508.19774](https://arxiv.org/abs/2508.19774) |
+| `pip.main()` was assigned CVE-2025-1716 as a picklescan unsafe-global bypass | [Sonatype advisory](https://www.sonatype.com/security-advisories/cve-2025-1716) |
+| JFrog disclosed picklescan bypasses for extension mismatch, bad ZIP CRC, and unsafe submodule globals | [CVE-2025-10155](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10155/), [CVE-2025-10156](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10156/), [CVE-2025-10157](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10157/) |
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Pickle scanning** | Detects all 6 code-execution opcodes: GLOBAL, STACK_GLOBAL, REDUCE, INST, OBJ, BUILD |
-| **ZIP extraction** | Scans inside `.pt`/`.pth` PyTorch archives (ZIP containing pickle) |
-| **Ed25519 signing** | Cryptographic model provenance — sign after scan, verify before load |
-| **SafeTensors validation** | Header integrity, tensor bounds, suspicious metadata detection |
-| **SARIF output** | Machine-readable results for GitHub Code Scanning and CI/CD pipelines |
-| **Configurable rules** | Externalized YAML rules — customize dangerous/safe module lists |
-| **Post-STOP detection** | Catches hidden payloads appended after pickle STOP opcode |
-| **Chain depth tracking** | Flags suspicious REDUCE chains (depth > 3) |
-
-## Installation
-
-```bash
-pip install -e ".[dev]"
-```
+| Pickle scanning | Detects dangerous imports/callables and code-execution opcodes including GLOBAL, STACK_GLOBAL, REDUCE, INST, OBJ, BUILD, NEWOBJ, and NEWOBJ_EX |
+| Archive extraction | Scans pickle payloads inside PyTorch ZIP archives, including nested ZIP archives |
+| SafeTensors validation | Checks header integrity, tensor bounds, and suspicious metadata |
+| Ed25519 signing | Signs model hashes and emits public keys for verification; CLI does not write private keys by default |
+| Provenance gate | Generates SLSA-style provenance and evaluates signer, builder, source, age, and material policy before promotion |
+| SARIF output | Produces GitHub Code Scanning-compatible SARIF v2.1.0 |
+| Configurable rules | Uses external YAML rules for safe modules, dangerous modules, and dangerous callables |
+| Post-STOP detection | Flags likely hidden payloads after pickle STOP |
+| Allowlist mode | Optional strict mode for environments that only permit known-safe modules |
 
 ## Usage
 
@@ -54,91 +49,94 @@ msca scan model.pkl
 msca scan model.pt --format json
 msca scan model.pt --format sarif --output results.sarif
 
-# Sign a model (Ed25519)
+# Sign with an ephemeral Ed25519 key; private key is not written
 msca sign model.pt --signer "training-pipeline-v1"
 
+# Sign with an existing PEM private key
+msca sign model.pt --key signing.pem --signer "training-pipeline-v1"
+
+# Sign with an encrypted PEM private key
+MSCA_KEY_PASSPHRASE="..." msca sign model.pt --key signing.pem
+
 # Verify signature before loading
-msca verify model.pt --signature model.pt.sig --key model.pt.pub
-```
+msca verify model.pt --signature model.pt.sig --key model.pub
 
-## Architecture
+# Generate provenance and enforce promotion policy
+msca attest model.pt \
+  --builder-id github-actions://poojakira/model-release \
+  --source-repo https://github.com/poojakira/Model-Supply-Chain-Auditor \
+  --source-ref refs/heads/main \
+  --run-id "$GITHUB_RUN_ID" \
+  --material training-data=data/train.csv \
+  --output model.provenance.json
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Model File (.pkl/.pt)                     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-┌─────────────────────┐ ┌─────────────────────────┐
-│   Pickle Scanner    │ │   Ed25519 Signing       │
-│                     │ │                         │
-│ • ZIP extraction    │ │ SHA-256 hash            │
-│ • 6 opcode types    │ │ → Ed25519 sign          │
-│ • YAML rules engine │ │ → .sig + .pub files     │
-│ • Chain depth       │ │                         │
-│ • Post-STOP detect  │ │ Verify before loading:  │
-│ • SARIF output      │ │ hash match + sig valid  │
-└─────────────────────┘ └─────────────────────────┘
+msca policy model.pt \
+  --signature model.pt.sig \
+  --key model.pub \
+  --provenance model.provenance.json \
+  --policy docs/policy.example.yaml
 ```
 
 ## Detection Coverage
 
-Based on documented CVEs and attack research:
-
 | Attack Pattern | Status | Reference |
-|---------------|--------|-----------|
-| `os.system` / `subprocess.Popen` | ✅ Detected | Standard pickle RCE |
-| `nt.system` / `posix.system` | ✅ Detected | Platform-specific variants |
-| `builtins.eval` / `builtins.exec` | ✅ Detected | Direct code execution |
-| `importlib.import_module` | ✅ Detected | CVE-2025-1716 class |
-| `pip.main(['install', 'evil'])` | ✅ Detected | CVE-2025-1716 |
-| BUILD state injection | ⚠️ Partial | Suppressed for safe modules |
-| Post-STOP hidden payload | ✅ Detected | Appended payload technique |
-| REDUCE chain depth > 3 | ⚠️ Flagged | Structural anomaly |
-| `typing.ForwardRef` eval | ❌ Not detected | Requires taint analysis |
-| Neural backdoors | ❌ Not detected | Requires weight analysis |
+|----------------|--------|-----------|
+| `os.system` / `subprocess.Popen` | Detected | Standard pickle RCE |
+| `nt.system` / `posix.system` | Detected | Platform-specific variants |
+| `builtins.eval` / `builtins.exec` | Detected | Direct code execution |
+| `pip.main(['install', 'evil'])` | Detected | CVE-2025-1716 |
+| `typing.ForwardRef` / `typing._eval_type` | Detected by callable denylist | Public bypass research |
+| `operator.methodcaller` / `operator.attrgetter` | Detected by callable denylist | Public bypass research |
+| Nested ZIP containing pickle | Detected recursively | Archive evasion class |
+| Post-STOP hidden payload | Detected heuristically | Appended payload technique |
+| REDUCE chain depth above configured threshold | Flagged | Structural anomaly |
+| Neural backdoors in weights | Out of scope | Requires model-behavior/weight analysis |
 
-See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for full threat model.
+See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for threat boundaries and framework mapping.
+See [docs/POLICY_GATE.md](docs/POLICY_GATE.md) for the release-gate architecture and Mermaid diagram.
 
 ## Testing
 
 ```bash
-pytest                    # 51 tests
-pytest --cov=src          # With coverage report
-make test-cov             # Via Makefile
+python -m pytest
+python -m pytest --cov=src --cov-report=term-missing
+ruff check src/ tests/
+ruff format --check src/ tests/
 ```
 
 ## Project Structure
 
-```
-├── src/
-│   ├── scanners/
-│   │   ├── pickle_scanner.py   # Core scanner (6 opcodes, ZIP, chain depth)
-│   │   └── sarif.py            # SARIF v2.1.0 output formatter
-│   ├── signing/
-│   │   └── model_signer.py     # Ed25519 sign/verify
-│   ├── safetensors_scanner.py  # SafeTensors format validator
-│   └── cli.py                  # CLI entry point (scan/sign/verify)
-├── tests/                      # 51 tests (scanner, signing, SARIF, CLI)
-├── rules.yaml                  # Configurable detection rules
-├── docs/
-│   ├── DESIGN.md               # Engineering decisions
-│   └── THREAT_MODEL.md         # What we detect vs. don't
-├── SECURITY.md                 # Vulnerability reporting
-├── CONTRIBUTING.md             # Development guide
-└── Makefile                    # Developer commands
+```text
+src/
+  scanners/
+    pickle_scanner.py      # Pickle bytecode/archive scanner
+    sarif.py               # SARIF v2.1.0 formatter
+  signing/
+    model_signer.py        # Ed25519 sign/verify
+  provenance.py            # SLSA-style provenance + YAML policy gate
+  safetensors_scanner.py   # SafeTensors validator
+  cli.py                   # scan/sign/verify CLI
+tests/                     # scanner, signing, SARIF, SafeTensors, CLI tests
+rules.yaml                 # Configurable detection rules
+docs/
+  DESIGN.md
+  POLICY_GATE.md
+  THREAT_MODEL.md
+  policy.example.yaml
 ```
 
 ## References
 
-1. Trail of Bits, [Fickling](https://github.com/trailofbits/fickling) (2021)
-2. OWASP, [LLM05: Supply Chain Vulnerabilities](https://owasp.org/www-project-machine-learning-security-top-10/)
-3. Bernstein et al., "High-speed high-security signatures" (2012) — Ed25519
-4. HuggingFace, [Pickle Scanning](https://huggingface.co/docs/hub/security-pickle) (2023)
-5. Sonatype, [Bypassing picklescan: 4 Vulnerabilities](https://www.sonatype.com/blog/bypassing-picklescan-sonatype-discovers-four-vulnerabilities) (2025)
-6. Liu et al., [Making Pickle-Based Model Supply Chain Poisoning Stealthy Again](https://arxiv.org/abs/2508.19774) (2025)
+1. Trail of Bits, [Fickling](https://github.com/trailofbits/fickling)
+2. Hugging Face, [Pickle Scanning](https://huggingface.co/docs/hub/security-pickle)
+3. Sonatype, [CVE-2025-1716](https://www.sonatype.com/security-advisories/cve-2025-1716)
+4. JFrog, [CVE-2025-10155](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10155/), [CVE-2025-10156](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10156/), [CVE-2025-10157](https://research.jfrog.com/vulnerabilities/picklescan-cve-2025-10157/)
+5. Liu et al., [The Art of Hide and Seek: Making Pickle-Based Model Supply Chain Poisoning Stealthy Again](https://arxiv.org/abs/2508.19774)
+6. Chong et al., [PickleBall: Secure Deserialization of Pickle-based Machine Learning Models](https://arxiv.org/abs/2508.15987)
+7. OWASP, [Machine Learning Security Top 10](https://owasp.org/www-project-machine-learning-security-top-10/)
+8. MITRE, [ATLAS](https://atlas.mitre.org/)
+9. NIST, [AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework) and [SSDF](https://csrc.nist.gov/projects/ssdf)
 
 ## License
 
-MIT — Pooja Kiran ([@poojakira](https://github.com/poojakira))
+MIT - Pooja Kiran ([@poojakira](https://github.com/poojakira))

@@ -1,7 +1,6 @@
-"""SafeTensors model scanning — validates safe serialization format.
+"""SafeTensors model scanning.
 
-SafeTensors (2026 standard) eliminates arbitrary code execution risk
-present in pickle-based formats. This scanner validates:
+SafeTensors avoids pickle deserialization. This scanner validates:
 1. File header integrity (JSON metadata)
 2. Tensor alignment and bounds
 3. No embedded executable payloads in metadata
@@ -36,7 +35,12 @@ class SafeTensorsScanner:
                 # SafeTensors format: 8-byte header length (little-endian uint64) + JSON header + tensor data
                 header_size_bytes = f.read(8)
                 if len(header_size_bytes) < 8:
-                    return {"safe": False, "issues": ["File too small for SafeTensors format"], "metadata": {}, "tensor_count": 0}
+                    return {
+                        "safe": False,
+                        "issues": ["File too small for SafeTensors format"],
+                        "metadata": {},
+                        "tensor_count": 0,
+                    }
 
                 header_size = struct.unpack("<Q", header_size_bytes)[0]
 
@@ -56,7 +60,11 @@ class SafeTensorsScanner:
 
                 # Check for suspicious metadata keys
                 metadata = header.pop("__metadata__", {})
-                suspicious_keys = [k for k in metadata if k.startswith("__") or "exec" in k.lower() or "eval" in k.lower()]
+                suspicious_keys = [
+                    k
+                    for k in metadata
+                    if k.startswith("__") or "exec" in k.lower() or "eval" in k.lower()
+                ]
                 if suspicious_keys:
                     issues.append(f"Suspicious metadata keys: {suspicious_keys}")
 

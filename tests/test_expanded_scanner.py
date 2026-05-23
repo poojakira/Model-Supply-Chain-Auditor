@@ -1,14 +1,10 @@
 """Tests for expanded scanner features: ZIP extraction, BUILD/INST opcodes, chain depth."""
 
-import io
 import os
 import pickle
-import struct
 import zipfile
 
-import pytest
-
-from src.scanners import scan_pickle_bytes, scan_pickle_file, Finding
+from src.scanners import Finding, scan_pickle_bytes, scan_pickle_file
 
 
 class TestStructuredFindings:
@@ -81,6 +77,7 @@ class TestExpandedOpcodes:
 
     def test_reduce_chain_depth_detection(self):
         """Multiple chained REDUCE operations should be flagged."""
+
         # Create a pickle with multiple REDUCE calls by chaining
         class Chain:
             def __reduce__(self):
@@ -124,7 +121,11 @@ class TestRulesLoading:
     def test_custom_rules(self):
         """Scanner respects custom rules dict."""
         custom_rules = {
-            "settings": {"max_reduce_depth": 3, "unknown_module_risk": "suspicious", "scan_past_stop": True},
+            "settings": {
+                "max_reduce_depth": 3,
+                "unknown_module_risk": "suspicious",
+                "scan_past_stop": True,
+            },
             "safe_modules": ["numpy"],
             "dangerous_modules": {"critical": ["os", "nt", "posix"], "high": [], "medium": []},
             "dangerous_callables": ["os.system"],
@@ -136,8 +137,9 @@ class TestRulesLoading:
 
     def test_rules_yaml_loads(self):
         """The rules.yaml file loads without error."""
-        from src.scanners.pickle_scanner import _load_rules
         from pathlib import Path
+
+        from src.scanners.pickle_scanner import _load_rules
 
         rules = _load_rules(Path("rules.yaml"))
         assert "settings" in rules

