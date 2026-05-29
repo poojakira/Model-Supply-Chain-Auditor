@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "model-supply-chain-auditor"
-version = "0.4.0"
+version = "0.4.1"
 description = "Detects malicious code in ML model files. Static analysis of pickle bytecode + Ed25519 cryptographic signing."
 readme = "README.md"
 license = "MIT"
@@ -20,13 +20,21 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "cryptography>=44.0",
-    "numpy>=2.0",
-    "PyYAML>=6.0",
+    "cryptography>=44.0.0,<48.0.0",
+    "numpy>=2.0.2,<3.0.0",
+    "PyYAML>=6.0.2,<8.0.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "ruff", "mypy"]
+dev = [
+    "pytest>=8.3.4,<9.0.0",
+    "pytest-cov>=6.0.0,<7.0.0",
+    "ruff>=0.8.4,<0.10.0",
+    "mypy>=1.14.0,<2.0.0",
+    "pip-audit>=2.7.3,<3.0.0",
+    "bandit>=1.8.0,<2.0.0",
+    "cyclonedx-python>=5.3.0,<6.0.0",
+]
 
 [project.scripts]
 msca = "src.cli:main"
@@ -52,7 +60,7 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
+select = ["E", "F", "I", "N", "W", "S", "B"]
 ignore = ["E501"]
 
 [tool.mypy]
@@ -60,3 +68,7 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # assert_used in test code is OK
