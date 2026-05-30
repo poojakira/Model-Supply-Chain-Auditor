@@ -1,5 +1,11 @@
 # Model-Supply-Chain-Auditor
 
+**TL;DR**: ML Security Engineer Portfolio Component - Model-Supply-Chain-Auditor
+**Demo**: `make smoke`
+**Evidence**: `sarif_output.json`
+
+# Model-Supply-Chain-Auditor
+
 This repository has undergone a comprehensive security audit and remediation by the Manus Security Audit Agent.
 
 ## Key Security Enhancements:
@@ -12,3 +18,9 @@ This repository has undergone a comprehensive security audit and remediation by 
 These changes reflect a commitment to robust ML security engineering practices, aligning with 2026 industry standards for Lead ML Security Engineers.
 
 For a detailed report of all findings and remediations, please refer to the main audit report.
+
+
+## Threat Model
+- **Assets**: ML Models, Training Data
+- **Adversaries**: Script kiddies, AI-automated attackers
+- **Mitigations**: Hardened CI/CD, Input Validation, SARIF Auditing
