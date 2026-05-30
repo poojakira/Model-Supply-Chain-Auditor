@@ -17,17 +17,24 @@ runs:
       run: pip install -e ${{ github.action_path }}/../../
     - name: Run scan
       shell: bash
+      # Security fix (semgrep: github-actions-script-injection): replaced direct
+      # ${{ inputs.* }} interpolation inside a `run:` script with environment
+      # variables to prevent script-injection via untrusted input values.
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        FAIL_ON_UNSAFE: ${{ inputs.fail-on-unsafe }}
       run: |
         python -c "
-        import sys, json
+        import sys, json, os
         from pathlib import Path
         from src.safetensors_scanner import SafeTensorsScanner
-        
-        scan_path = Path('${{ inputs.path }}')
+
+        scan_path = Path(os.environ['SCAN_PATH'])
+        fail_on_unsafe = os.environ.get('FAIL_ON_UNSAFE', 'true').lower() == 'true'
         scanner = SafeTensorsScanner()
         results = []
         unsafe = False
-        
+
         for f in scan_path.rglob('*.safetensors'):
             result = scanner.scan(f)
             results.append({'file': str(f), **result})
@@ -36,10 +43,10 @@ runs:
                 print(f'UNSAFE: {f} - {result[\"issues\"]}')
             else:
                 print(f'OK: {f} ({result[\"tensor_count\"]} tensors)')
-        
+
         Path('scan-results.json').write_text(json.dumps(results, indent=2))
-        
-        if unsafe and '${{ inputs.fail-on-unsafe }}' == 'true':
+
+        if unsafe and fail_on_unsafe:
             sys.exit(1)
         "
     - name: Upload results
