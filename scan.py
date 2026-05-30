@@ -58,7 +58,7 @@ def main() -> None:
     if args.output:
         args.output.write_text(output)
     else:
-        print(output)
+        import logging; logging.info(output)
 
     sys.exit(1 if result.is_malicious else 0)
 

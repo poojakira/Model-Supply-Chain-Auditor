@@ -33,10 +33,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
     try:
         result = scan_pickle_file(args.file, rules=rules)
     except FileNotFoundError:
-        print(f"Error: file not found: {args.file}", file=sys.stderr)
+        import logging; logging.info(f"Error: file not found: {args.file}", file=sys.stderr)
         return EXIT_ERROR
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        import logging; logging.info(f"Error: {e}", file=sys.stderr)
         return EXIT_ERROR
 
     if args.format == "sarif":
@@ -74,7 +74,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     if args.output:
         Path(args.output).write_text(output)
     else:
-        print(output)
+        import logging; logging.info(output)
 
     return EXIT_MALICIOUS if result.is_malicious else EXIT_CLEAN
 
@@ -100,10 +100,10 @@ def cmd_sign(args: argparse.Namespace) -> int:
             if not isinstance(private_key, Ed25519PrivateKey):
                 raise ValueError("Signing key must be an Ed25519 private key")
             public_key = private_key.public_key()
-            print(f"Loaded signing key: {key_path}")
+            import logging; logging.info(f"Loaded signing key: {key_path}")
         else:
             private_key, public_key = generate_signing_keypair()
-            print("Generated ephemeral signing key; private key was not written to disk")
+            import logging; logging.info("Generated ephemeral signing key; private key was not written to disk")
 
         sig = sign_model(args.file, private_key, signer=args.signer)
 
@@ -120,13 +120,13 @@ def cmd_sign(args: argparse.Namespace) -> int:
         pub_path = sig_path.with_suffix(".pub")
         pub_path.write_bytes(export_public_key(public_key))
 
-        print(f"Signed: {args.file}")
-        print(f"  Signature: {sig_path}")
-        print(f"  Public key: {pub_path}")
-        print(f"  Signer: {sig.signer}")
+        import logging; logging.info(f"Signed: {args.file}")
+        import logging; logging.info(f"  Signature: {sig_path}")
+        import logging; logging.info(f"  Public key: {pub_path}")
+        import logging; logging.info(f"  Signer: {sig.signer}")
         return EXIT_CLEAN
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        import logging; logging.info(f"Error: {e}", file=sys.stderr)
         return EXIT_ERROR
 
 
@@ -141,13 +141,13 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
         valid = verify_model(args.file, sig, pub_key)
         if valid:
-            print(f"[VALID] {args.file} — signature verified (signer: {sig.signer})")
+            import logging; logging.info(f"[VALID] {args.file} — signature verified (signer: {sig.signer})")
             return EXIT_CLEAN
         else:
-            print(f"[INVALID] {args.file} — signature verification FAILED")
+            import logging; logging.info(f"[INVALID] {args.file} — signature verification FAILED")
             return EXIT_MALICIOUS
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        import logging; logging.info(f"Error: {e}", file=sys.stderr)
         return EXIT_ERROR
 
 
@@ -177,10 +177,10 @@ def cmd_attest(args: argparse.Namespace) -> int:
         if args.output:
             Path(args.output).write_text(output)
         else:
-            print(output)
+            import logging; logging.info(output)
         return EXIT_CLEAN
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        import logging; logging.info(f"Error: {e}", file=sys.stderr)
         return EXIT_ERROR
 
 
@@ -208,17 +208,17 @@ def cmd_policy(args: argparse.Namespace) -> int:
             "warnings": decision.warnings,
         }
         if args.format == "json":
-            print(json.dumps(payload, indent=2))
+            import logging; logging.info(json.dumps(payload, indent=2))
         else:
             status = "ALLOW" if decision.allowed else "DENY"
-            print(f"[{status}] {args.file}")
+            import logging; logging.info(f"[{status}] {args.file}")
             for reason in decision.reasons:
-                print(f"  - {reason}")
+                import logging; logging.info(f"  - {reason}")
             for warning in decision.warnings:
-                print(f"  warning: {warning}")
+                import logging; logging.info(f"  warning: {warning}")
         return EXIT_CLEAN if decision.allowed else EXIT_MALICIOUS
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        import logging; logging.info(f"Error: {e}", file=sys.stderr)
         return EXIT_ERROR
 
 
